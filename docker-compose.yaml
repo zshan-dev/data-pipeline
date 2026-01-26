@@ -29,7 +29,7 @@ services:
       - db
   ingestor:
     build: ./ingestor
-    container_name: hoop-ingestor
+    container_name: hoopp-ingestor
 
     depends_on:
      - db
