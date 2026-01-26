@@ -27,6 +27,14 @@ services:
       - "5050:80"    
     depends_on:
       - db
+  ingestor:
+    build: ./ingestor
+    container_name: hoop-ingestor
+
+    depends_on:
+     - db
+    volumes:
+     - ./ingestor/src:/app/src
 
 volumes:
   postgres_data:   
