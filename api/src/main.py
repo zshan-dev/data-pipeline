@@ -4,7 +4,7 @@ import psycopg2
 
 app = FastAPI()
 
-def query_postgres():
+def get_db_connection():
     db_params = {
         "host" : "localhost",
         "database": "hoopp-db",
@@ -12,11 +12,9 @@ def query_postgres():
         "password" : "password123",
         "port": "5432"
     }
-    conn = None
-    cursor = None
 
     try:
-        conn = psycopg2.connect(**db_params)
+        return psycopg2.connect(**db_params)
     except (Exception, psycopg2.DatabaseError) as error:
         print(f"Error connecting to the database or executing query: {error}")
 
@@ -27,5 +25,11 @@ def health():
 
 app.get("/news")
 def get_news(data:str, limit : int, filter: str):
-    # SELECT * FROM market_intelligence
-    pass 
+    conn = get_db_connection()
+    curr = conn.cursor
+    curr.execute("SELECT %s FROM market_intelligence LIMIT 50 WHERE news = %s", data, filter)
+    #psycopg2.extras.RealDictCursor
+
+    conn.commit()
+    curr.close()
+    conn.close()
