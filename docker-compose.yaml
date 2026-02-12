@@ -35,6 +35,16 @@ services:
      - db
     volumes:
      - ./ingestor/src:/app/src
+  
+  api:
+    build: ./api
+    container_name: fastapi
+    ports: 
+     - 8000:8000
+    depends_on:
+     - db 
+    networks:
+     - hoop-net 
 
 volumes:
   postgres_data:   
