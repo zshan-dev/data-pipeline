@@ -50,9 +50,15 @@ def save_intelligence(asset_id, articles):
         
         # "compound" gives a score from -1.0 (Bad) to +1.0 (Good)
         vs = analyzer.polarity_scores(headline)
-        sentiment_score = vs['compound']
+        raw_score = vs['compound']
         
         print(f" Analyzing: {headline[:30]}... -> Score: {sentiment_score}")
+
+        try:
+            sentiment_score = float(raw_score)
+        except:
+            print("Invalid input type, could not calculate score for '{headline}'. Defaulting to 0.0")
+            sentiment_score = 0.0
 
         cur.execute("""
             INSERT INTO market_intelligence (headline, sentiment_score, asset_class_id, captured_at)
@@ -66,7 +72,7 @@ def save_intelligence(asset_id, articles):
     print(f"Saved {count} analyzed articles for Asset ID {asset_id}")
 
 def run_pipeline():
-    print("Starting HOOPP Intelligence Engine...")
+    print("Starting Intelligence Engine...")
     targets = fetch_portfolio_targets()
     print(f" Found {len(targets)} active targets to monitor.")
     

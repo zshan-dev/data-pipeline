@@ -1,20 +1,23 @@
-from fastapi import FastAPI
-
+from fastapi import FastAPI, HTTPException
+from . import models
 import psycopg2
+from psycopg2.extras import RealDictCursor
+from typing import List
+
 
 app = FastAPI()
 
 def get_db_connection():
     db_params = {
-        "host" : "localhost",
-        "database": "hoopp-db",
+        "host" : "db",
+        "database": "hoopp_intelligence",
         "user": "admin",
         "password" : "password123",
         "port": "5432"
     }
 
     try:
-        return psycopg2.connect(**db_params)
+        return psycopg2.connect(**db_params, cursor_factory=RealDictCursor)
     except (Exception, psycopg2.DatabaseError) as error:
         print(f"Error connecting to the database or executing query: {error}")
 
@@ -23,13 +26,18 @@ app.get("/")
 def health():
     return {"status": "ok"} 
 
-app.get("/news")
-def get_news(data:str, limit : int, filter: str):
+app.get("/news", response_model=List[models.MarketNews])
+def get_news(limit: int = 50, sentiment_filter: str = "all"):
     conn = get_db_connection()
-    curr = conn.cursor
-    curr.execute("SELECT %s FROM market_intelligence LIMIT 50 WHERE news = %s", data, filter)
-    #psycopg2.extras.RealDictCursor
+    if not conn:
+        raise HTTPException(status_code=500, detail="Database connection failed")
+    curr = conn.cursor()
 
+    query = " "
+
+    results = curr.fetchall()
     conn.commit()
     curr.close()
     conn.close()
+
+    return results
