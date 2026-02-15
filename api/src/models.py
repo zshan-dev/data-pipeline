@@ -24,3 +24,11 @@ class MarketIntelligence(Base):
     asset = relationship("PortfolioTarget", back_populates="news")
 
 
+class FundedStatusLog(Base):
+    __tablename__ = "funded_status_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    captured_at = Column(DateTime, nullable=False, index=True)
+    total_assets = Column(Float, nullable=False) 
+    total_liabilities = Column(Float, nullable=False)
+    funded_ratio = Column(Float, nullable=False)     
