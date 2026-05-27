@@ -48,3 +48,55 @@ The system utilizes a microservices-based architecture to ensure modularity, fau
 * **Dynamic Ingestion:** Automatically adapts search queries based on the active portfolio mix stored in the database.
 * **NLP Sentiment Scoring:** Algorithmically judges news as Positive, Neutral, or Negative to quantify market mood.
 * **Containerized Environment:** Fully portable development environment ensuring 100% consistency across machines.
+
+---
+
+### How to run end-to-end (local)
+
+1. **Start the stack**
+
+   ```bash
+   docker compose up --build
+   ```
+
+   This starts:
+   - Postgres (`db`)
+   - pgAdmin (`pgadmin`)
+   - FastAPI (`api`)
+   - Ingestor container (`ingestor`)
+
+   On API startup, the service will:
+   - Create core tables (`portfolio_targets`, `market_intelligence`, `funded_status_log`).
+   - Seed HOOPP-style long-term asset mix into `portfolio_targets`.
+   - Insert a baseline funded-status snapshot (Dec 31, 2024) into `funded_status_log`.
+
+2. **Run the intelligence engine (ingestor)**
+
+   In a separate terminal:
+
+   ```bash
+   docker exec -it hoopp-ingestor python src/main.py
+   ```
+
+   This will:
+   - Read all `High`/`Medium` risk `portfolio_targets` (Equities, Real Estate, Infrastructure, Credit).
+   - Fetch recent Google News RSS headlines for each asset class.
+   - Score each headline with VADER sentiment (`sentiment_score` ∈ [-1.0, 1.0]).
+   - Persist results into `market_intelligence`.
+
+3. **Query the API**
+
+   - Swagger UI: <http://localhost:8000/docs>
+   - Health check: <http://localhost:8000/>
+
+   Example request:
+
+   ```bash
+   curl "http://localhost:8000/news?limit=20&sentiment_filter=positive"
+   ```
+
+   `sentiment_filter` supports:
+   - `all` (default)
+   - `positive`
+   - `negative`
+   - `neutral`
