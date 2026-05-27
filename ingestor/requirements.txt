@@ -2,3 +2,4 @@ feedparser
 psycopg2-binary
 requests
 vaderSentiment
+pyspark==3.5.1
