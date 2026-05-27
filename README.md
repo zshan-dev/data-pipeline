@@ -100,3 +100,33 @@ The system utilizes a microservices-based architecture to ensure modularity, fau
    - `positive`
    - `negative`
    - `neutral`
+
+4. **Simulate funded-status impact**
+
+   After running the ingestor, trigger the risk engine to translate sentiment into a funded-ratio update:
+
+   ```bash
+   # Check current baseline (Dec 31, 2024 — funded ratio 1.11 / 111%)
+   curl http://localhost:8000/funded-status/latest
+
+   # Run the simulation (uses last 24h of ingested sentiment)
+   curl -X POST "http://localhost:8000/funded-status/recalculate?lookback_hours=24&sensitivity=0.02"
+
+   # Confirm the new ratio was logged
+   curl http://localhost:8000/funded-status/latest
+   ```
+
+   The recalculation response includes:
+
+   | Field | Meaning |
+   |-------|---------|
+   | `prior_funded_ratio` | Ratio before this simulation run |
+   | `weighted_sentiment_score` | Portfolio-level sentiment (allocation-weighted avg across asset classes) |
+   | `shock_pct` | Estimated % change applied to total assets (capped at ±2%) |
+   | `funded_ratio` | New simulated ratio after shock |
+
+   **Model assumptions (v1):**
+   - Liabilities are held constant; only assets are shocked.
+   - Sensitivity factor `k = 0.02` — a sentiment score of ±1.0 produces at most a ±2% asset movement.
+   - Asset classes with no recent news default to a sentiment contribution of 0.0.
+   - Bonds (`Nominal Bonds`, `Real Return Bonds`) are `Low` priority and excluded from ingestor targets, so they contribute 0.0 to the weighted score in this model.
