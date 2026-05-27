@@ -5,6 +5,7 @@ from typing import List
 from . import models, schemas
 from .database import Base, SessionLocal, engine, get_db
 from .seed import seed_funded_status, seed_portfolio_targets
+from .risk_engine import get_latest_funded_status, recalculate_funded_status
 
 app = FastAPI()
 
@@ -52,3 +53,46 @@ def get_news(limit: int = 50, sentiment_filter: str = "all", db: Session = Depen
         )
         for row in rows
     ]
+
+
+@app.get("/funded-status/latest", response_model=schemas.FundedStatusLatest)
+def funded_status_latest(db: Session = Depends(get_db)):
+    latest = get_latest_funded_status(db)
+    if latest is None:
+        # This should not happen because startup seeds a baseline row.
+        # Raising keeps behavior explicit for demos.
+        raise ValueError("No funded_status_log baseline found.")
+
+    return schemas.FundedStatusLatest(
+        id=latest.id,
+        captured_at=latest.captured_at,
+        total_assets=latest.total_assets,
+        total_liabilities=latest.total_liabilities,
+        funded_ratio=latest.funded_ratio,
+    )
+
+
+@app.post("/funded-status/recalculate", response_model=schemas.FundedStatusRecalculation)
+def funded_status_recalculate(
+    lookback_hours: int = 24,
+    sensitivity: float = 0.02,
+    db: Session = Depends(get_db),
+):
+    simulated = recalculate_funded_status(
+        db=db,
+        lookback_hours=lookback_hours,
+        sensitivity=sensitivity,
+        max_shock_pct=sensitivity,  # keep it tight for demo safety
+    )
+
+    return schemas.FundedStatusRecalculation(
+        captured_at=simulated.captured_at,
+        prior_total_assets=simulated.prior_total_assets,
+        prior_total_liabilities=simulated.prior_total_liabilities,
+        prior_funded_ratio=simulated.prior_funded_ratio,
+        weighted_sentiment_score=simulated.weighted_sentiment_score,
+        shock_pct=simulated.shock_pct,
+        total_assets=simulated.total_assets,
+        total_liabilities=simulated.total_liabilities,
+        funded_ratio=simulated.funded_ratio,
+    )
