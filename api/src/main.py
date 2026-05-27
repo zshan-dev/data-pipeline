@@ -1,48 +1,54 @@
-from fastapi import FastAPI, HTTPException
-from . import schemas
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from fastapi import Depends, FastAPI
+from sqlalchemy.orm import Session, joinedload
 from typing import List
 
+from . import models, schemas
+from .database import Base, SessionLocal, engine, get_db
+from .seed import seed_funded_status, seed_portfolio_targets
 
 app = FastAPI()
 
-def get_db_connection():
-    db_params = {
-        "host" : "db",
-        "database": "hoopp_intelligence",
-        "user": "admin",
-        "password" : "password123",
-        "port": "5432"
-    }
 
+@app.on_event("startup")
+def on_startup():
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
     try:
-        return psycopg2.connect(**db_params, cursor_factory=RealDictCursor)
-    except (Exception, psycopg2.DatabaseError) as error:
-        print(f"Error connecting to the database or executing query: {error}")
+        seed_portfolio_targets(db)
+        seed_funded_status(db)
+    finally:
+        db.close()
 
 
-app.get("/")
+@app.get("/")
 def health():
-    return {"status": "ok"} 
+    return {"status": "ok"}
 
-app.get("/news", response_model=List[schemas.MarketNews])
-def get_news(limit: int = 50, sentiment_filter: str = "all"):
-    conn = get_db_connection()
-    if not conn:
-        raise HTTPException(status_code=500, detail="Database connection failed")
-    curr = conn.cursor()
 
-    query = "SELECT m.id, m.headline, m.sentiment_score, p.asset_class, m.captured_at " \
-    "FROM market_intelligence AS m " \
-    "INNER JOIN portfolio_targets ON m.asset_class_id = portfolio_targets.id " \
-    ""
+@app.get("/news", response_model=List[schemas.MarketNews])
+def get_news(limit: int = 50, sentiment_filter: str = "all", db: Session = Depends(get_db)):
+    query = (
+        db.query(models.MarketIntelligence)
+        .options(joinedload(models.MarketIntelligence.asset))
+        .order_by(models.MarketIntelligence.captured_at.desc())
+    )
 
-    
-    
-    results = curr.fetchall()
-    conn.commit()
-    curr.close()
-    conn.close()
+    if sentiment_filter == "positive":
+        query = query.filter(models.MarketIntelligence.sentiment_score > 0)
+    elif sentiment_filter == "negative":
+        query = query.filter(models.MarketIntelligence.sentiment_score < 0)
+    elif sentiment_filter == "neutral":
+        query = query.filter(models.MarketIntelligence.sentiment_score == 0)
 
-    return results
+    rows = query.limit(limit).all()
+
+    return [
+        schemas.MarketNews(
+            id=row.id,
+            headline=row.headline,
+            sentiment_score=row.sentiment_score,
+            asset_class=row.asset.asset_class,
+            captured_at=row.captured_at,
+        )
+        for row in rows
+    ]

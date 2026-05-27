@@ -27,7 +27,11 @@ def get_db_connection():
 def fetch_portfolio_targets():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, asset_class FROM portfolio_targets WHERE risk_level IN ('High', 'Medium');")
+    cur.execute(
+        "SELECT id, asset_class "
+        "FROM portfolio_targets "
+        "WHERE LOWER(risk_level) IN ('high', 'medium');"
+    )
     targets = cur.fetchall()
     cur.close()
     conn.close()
@@ -51,14 +55,16 @@ def save_intelligence(asset_id, articles):
         # "compound" gives a score from -1.0 (Bad) to +1.0 (Good)
         vs = analyzer.polarity_scores(headline)
         raw_score = vs['compound']
-        
-        print(f" Analyzing: {headline[:30]}... -> Score: {sentiment_score}")
 
         try:
             sentiment_score = float(raw_score)
-        except:
-            print("Invalid input type, could not calculate score for '{headline}'. Defaulting to 0.0")
+        except (ValueError, TypeError):
+            print(
+                f"Invalid score for headline, defaulting to 0.0: {headline[:80]!r}"
+            )
             sentiment_score = 0.0
+
+        print(f" Analyzing: {headline[:30]}... -> Score: {sentiment_score}")
 
         cur.execute("""
             INSERT INTO market_intelligence (headline, sentiment_score, asset_class_id, captured_at)

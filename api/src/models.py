@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, Float, String, DateTime, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, validates
 from .database import Base
 
 class PortfolioTarget(Base):
@@ -7,10 +7,19 @@ class PortfolioTarget(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     asset_class = Column(String, unique=True, index=True, nullable=False)
-    target_percentage = Column(Integer, nullable=False)
+    target_percentage = Column(Float, nullable=False)
     risk_level = Column(String, nullable=True)
 
     news = relationship("MarketIntelligence", back_populates="asset")
+
+    @validates("risk_level")
+    def normalize_risk_level(self, _, value):
+        if value is None:
+            return None
+        normalized = value.strip().lower()
+        if not normalized:
+            return None
+        return normalized.capitalize()
 
 class MarketIntelligence(Base):
     __tablename__ = "market_intelligence"
