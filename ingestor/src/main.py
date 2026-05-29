@@ -143,4 +143,12 @@ def run_pipeline():
 
 if __name__ == "__main__":
     time.sleep(5)
+
+    # Uncomment to run continuously (near-real-time mode).
+    # Polls every 15 minutes — change the interval as needed.
+    # while True:
+    #     run_pipeline()
+    #     time.sleep(900)
+
+    # Manual trigger mode (default) — run once and exit.
     run_pipeline()
